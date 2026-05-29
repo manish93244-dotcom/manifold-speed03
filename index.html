@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manifold Speed</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #a3e635; font-family: sans-serif; user-select: none; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        .glass-panel { background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.25); }
+        #speed-needle { transform-origin: 50px 50px; transition: transform 0.1s ease-out; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between h-screen w-screen">
+        
+        <div id="hud" class="hidden p-6 justify-between items-start w-full pointer-events-auto flex-row">
+            <div class="glass-panel text-white font-bold text-xl px-6 py-4 rounded-2xl shadow-lg flex flex-col min-w-[180px]">
+                <div class="flex justify-between text-yellow-300"><span>🪙 Coins:</span><span id="hud-coins">0</span></div>
+                <div class="flex justify-between text-blue-200"><span>🏁 Score:</span><span id="hud-score">0</span></div>
+            </div>
+            
+            <div class="glass-panel p-4 rounded-full shadow-2xl bg-gray-900 bg-opacity-40 border border-white border-opacity-30 flex items-center justify-center">
+                <svg width="120" height="120" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" fill="rgba(15, 23, 42, 0.6)" stroke="#ffffff" stroke-width="2"/>
+                    <text x="50" y="60" id="speed-numerical" fill="#fff" font-size="16" font-weight="bold" text-anchor="middle">0</text>
+                    <text x="50" y="72" fill="#94a3b8" font-size="7" font-weight="bold" text-anchor="middle">KM/H</text>
+                    <line id="speed-needle" x1="50" y1="50" x2="50" y2="18" stroke="#ef4444" stroke-width="3" stroke-linecap="round" transform="rotate(-120 50 50)"/>
+                    <circle cx="50" cy="50" r="4" fill="#ef4444"/>
+                </svg>
+            </div>
+        </div>
+
+        <div id="main-menu" class="m-auto pointer-events-auto flex flex-col items-center gap-6 max-w-4xl w-11/12 p-8 glass-panel rounded-3xl shadow-2xl text-center border border-white border-opacity-40">
+            <div>
+                <h1 class="text-5xl font-extrabold text-yellow-300 uppercase tracking-tight">
+                    Manifold Speed
+                </h1>
+                <p class="text-white text-xs font-semibold tracking-wider uppercase opacity-80 mt-1">Endless 3D Racing Arcade</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full my-2">
+                <button id="btn-car-bmw" class="car-card cursor-pointer border-2 border-yellow-400 bg-white bg-opacity-20 p-4 rounded-2xl flex flex-col items-center text-white transition focus:outline-none">
+                    <div class="w-12 h-6 bg-blue-600 rounded mb-2 shadow"></div>
+                    <span class="font-bold">BMW</span>
+                </button>
+                <button id="btn-car-volvo" class="car-card cursor-pointer border border-white border-opacity-20 bg-black bg-opacity-20 p-4 rounded-2xl flex flex-col items-center text-white opacity-70 transition focus:outline-none">
+                    <div class="w-12 h-6 bg-gray-200 rounded mb-2 shadow"></div>
+                    <span class="font-bold">Volvo</span>
+                </button>
+                <button id="btn-car-ferrari" class="car-card cursor-pointer border border-white border-opacity-20 bg-black bg-opacity-20 p-4 rounded-2xl flex flex-col items-center text-white opacity-70 transition focus:outline-none">
+                    <div class="w-12 h-6 bg-red-600 rounded mb-2 shadow"></div>
+                    <span class="font-bold">Ferrari</span>
+                </button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 w-full justify-center items-center">
+                <button id="btn-start" class="px-12 py-4 bg-green-500 text-white font-black text-2xl rounded-2xl shadow-lg transform hover:scale-105 transition cursor-pointer focus:outline-none">START RACE</button>
+                <button id="btn-about-open" class="px-6 py-4 bg-white bg-opacity-10 text-white font-semibold rounded-2xl border border-white border-opacity-20 cursor-pointer transition focus:outline-none">About Dev</button>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="hidden m-auto pointer-events-auto flex flex-col items-center gap-4 p-8 glass-panel rounded-3xl text-center border border-red-500 border-opacity-30 max-w-md w-full">
+            <h2 class="text-4xl font-extrabold text-red-500 uppercase tracking-wide">Wrecked!</h2>
+            <div class="w-full bg-black bg-opacity-20 rounded-xl p-4 text-white font-bold flex flex-col gap-2">
+                <div class="flex justify-between"><span>Final Score:</span><span id="final-score" class="text-blue-300">0</span></div>
+                <div class="flex justify-between"><span>Coins:</span><span id="final-coins" class="text-yellow-300">0</span></div>
+            </div>
+            <button id="btn-retry" class="w-full py-3 bg-white text-gray-900 font-bold rounded-xl cursor-pointer shadow hover:bg-gray-100 transition focus:outline-none">Showroom</button>
+        </div>
+
+        <div id="about-screen" class="hidden m-auto pointer-events-auto flex flex-col gap-4 p-6 glass-panel rounded-3xl text-white max-w-md w-full border border-white border-opacity-30">
+            <h3 class="text-2xl font-bold border-b border-white border-opacity-20 pb-2">Developer Portfolio</h3>
+            <div class="space-y-2 text-sm text-left">
+                <p><strong>Name:</strong> Manish Kumar</p>
+                <p><strong>Institution:</strong> MITS Gwalior</p>
+                <p><strong>Branch:</strong> Mathematics & Computing</p>
+            </div>
+            <a href="https://www.linkedin.com/in/manish-kumar-42b78b300" target="_blank" class="py-2.5 bg-blue-600 hover:bg-blue-500 text-center text-white font-bold rounded-xl transition block shadow mt-2">
+                LinkedIn Profile
+            </a>
+            <button id="btn-about-close" class="w-full py-2 bg-white bg-opacity-10 hover:bg-white hover:bg-opacity-20 rounded-xl text-xs cursor-pointer transition focus:outline-none mt-2">Back</button>
+        </div>
+        <div></div>
+    </div>
+
+    <div id="splash-screen" class="absolute inset-0 z-50 bg-gray-950 flex flex-col items-center justify-center transition-opacity duration-1000">
+        <div class="text-center space-y-4">
+            <div class="w-20 h-20 mx-auto bg-yellow-500 rounded-2xl flex items-center justify-center text-white text-4xl font-black shadow-2xl transform rotate-12">-M-</div>
+            <h1 class="text-4xl font-bold text-white tracking-widest mt-4">MANIFOLD SPEED</h1>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, playerCar;
+        let gameState = 'INTRO';
+        let selectedCarType = 'bmw';
+        let highwaySegments = [], sceneryItems = [], trafficVehicles = [], activeCoins = [];
+        const ROAD_WIDTH = 14, LANE_WIDTH = 4.66, LANE_X = [-4.66, 0, 4.66];
+        
+        let player = {
+            lane: 1, x: 0, targetX: 0, speed: 0, maxSpeed: 1.6, 
+            score: 0, coins: 0, lean: 0, rotation: 0
+        };
+
+        let keys = { a: false, d: false };
+        let audioCtx, motorGain;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color('#bae6fd');
+            scene.fog = new THREE.FogExp2('#bae6fd', 0.008);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, -10);
+            camera.lookAt(0, 2, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(10, 20, 10);
+            light.castShadow = true;
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+
+            for(let i=0; i<10; i++) buildSegment(i);
+            
+            setupMenuListeners();
+            animate();
+        }
+
+        function setupMenuListeners() {
+            document.getElementById('btn-start').addEventListener('click', () => {
+                startGame();
+            });
+
+            document.getElementById('btn-about-open').addEventListener('click', () => {
+                toggleAbout(true);
+            });
+
+            document.getElementById('btn-about-close').addEventListener('click', () => {
+                toggleAbout(false);
+            });
+
+            document.getElementById('btn-retry').addEventListener('click', () => {
+                returnToMenu();
+            });
+
+            document.getElementById('btn-car-bmw').addEventListener('click', () => selectCar('bmw'));
+            document.getElementById('btn-car-volvo').addEventListener('click', () => selectCar('volvo'));
+            document.getElementById('btn-car-ferrari').addEventListener('click', () => selectCar('ferrari'));
+        }
+
+        function buildSegment(z) {
+            const group = new THREE.Group();
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_WIDTH, 40), new THREE.MeshStandardMaterial({color: 0x333333}));
+            road.rotation.x = -Math.PI/2;
+            road.receiveShadow = true;
+            group.add(road);
+
+            const grass = new THREE.Mesh(new THREE.PlaneGeometry(200, 40), new THREE.MeshStandardMaterial({color: 0x86efac}));
+            grass.rotation.x = -Math.PI/2; grass.position.y = -0.1;
+            group.add(grass);
+
+            for(let i=0; i<2; i++) {
+                const line = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 40), new THREE.MeshStandardMaterial({color: 0xffffff}));
+                line.rotation.x = -Math.PI/2; line.position.set(i===0 ? -2.33 : 2.33, 0.01, 0);
+                group.add(line);
+            }
+
+            for(let i=0; i<2; i++){
+                const side = i === 0 ? 1 : -1;
+                const tree = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 4), new THREE.MeshStandardMaterial({color: 0x22c55e}));
+                tree.position.set(side * 15, 2, (Math.random()-0.5)*30);
+                group.add(tree);
+                
+                const mt = new THREE.Mesh(new THREE.ConeGeometry(15, 30, 4), new THREE.MeshStandardMaterial({color: 0x94a3b8}));
+                mt.position.set(side * 45, 10, (Math.random()-0.5)*20);
+                group.add(mt);
+            }
+
+            group.position.z = z * 40;
+            scene.add(group);
+            highwaySegments.push({group, z});
+        }
+
+        function createCar(type) {
+            const group = new THREE.Group();
+            const colors = { bmw: 0x2563eb, volvo: 0xe2e8f0, ferrari: 0xdc2626, traffic: 0x64748b };
+            
+            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshStandardMaterial({color: colors[type]}));
+            body.position.y = 0.6; body.castShadow = true;
+            group.add(body);
+
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 2), new THREE.MeshStandardMaterial({color: colors[type]}));
+            cabin.position.set(0, 1.4, -0.2);
+            group.add(cabin);
+
+            return group;
+        }
+
+        function handleInput(e, isDown) {
+            if(e.key.toLowerCase() === 'a') keys.a = isDown;
+            if(e.key.toLowerCase() === 'd') keys.d = isDown;
+        }
+
+        function startGame() {
+            startAudio();
+            player.speed = 0; player.score = 0; player.coins = 0; player.lane = 1; player.x = 0;
+            if(playerCar) scene.remove(playerCar);
+            playerCar = createCar(selectedCarType);
+            scene.add(playerCar);
+            
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('hud').classList.add('flex');
+            gameState = 'PLAYING';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(gameState === 'PLAYING') {
+                if(keys.a) player.lane = Math.max(0, player.lane - 0.05);
+                if(keys.d) player.lane = Math.min(2, player.lane + 0.05);
+                
+                player.targetX = (player.lane - 1) * LANE_WIDTH;
+                let moveDiff = player.targetX - player.x;
+                player.x += moveDiff * 0.15;
+                
+                player.rotation = -moveDiff * 0.25; 
+                player.lean = moveDiff * 0.12;
+
+                playerCar.position.set(player.x, 0, camera.position.z + 15);
+                playerCar.rotation.y = player.rotation;
+                playerCar.rotation.z = player.lean;
+
+                if(player.speed < player.maxSpeed) player.speed += 0.005;
+                camera.position.z += player.speed;
+                player.score += player.speed;
+
+                document.getElementById('hud-score').innerText = Math.floor(player.score);
+                document.getElementById('hud-coins').innerText = player.coins;
+                const speedVal = Math.floor(player.speed * 150);
+                document.getElementById('speed-numerical').innerText = speedVal;
+                document.getElementById('speed-needle').style.transform = `rotate(${-120 + (speedVal*1.2)}deg)`;
+
+                highwaySegments.forEach(seg => {
+                    if(camera.position.z - seg.group.position.z > 40) {
+                        seg.group.position.z += 10 * 40;
+                        spawnObstacles(seg.group.position.z);
+                    }
+                });
+
+                trafficVehicles.forEach((t, i) => {
+                    if(playerCar.position.distanceTo(t.position) < 2.5) endGame();
+                });
+
+                activeCoins.forEach((c, i) => {
+                    if(playerCar.position.distanceTo(c.position) < 2) {
+                        player.coins++; scene.remove(c); activeCoins.splice(i, 1);
+                        playCoinSound();
+                    }
+                });
+            }
+            renderer.render(scene, camera);
+        }
+
+        function spawnObstacles(z) {
+            if(Math.random() > 0.5) {
+                const t = createCar('traffic');
+                t.position.set(LANE_X[Math.floor(Math.random()*3)], 0, z + (Math.random()*20));
+                scene.add(t); trafficVehicles.push(t);
+            }
+            const c = new THREE.Mesh(new THREE.SphereGeometry(0.5), new THREE.MeshStandardMaterial({color: 0xffd700}));
+            c.position.set(LANE_X[Math.floor(Math.random()*3)], 1, z);
+            scene.add(c); activeCoins.push(c);
+        }
+
+        function startAudio() {
+            if(audioCtx) {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                return;
+            }
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            motorGain = audioCtx.createGain();
+            osc.type = 'sawtooth'; osc.frequency.value = 60;
+            motorGain.gain.value = 0.05;
+            osc.connect(motorGain).connect(audioCtx.destination);
+            osc.start();
+        }
+
+        function playCoinSound() {
+            if(!audioCtx) return;
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.frequency.setValueAtTime(880, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            o.connect(g).connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function endGame() {
+            gameState = 'GAMEOVER';
+            document.getElementById('hud').classList.remove('flex');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = Math.floor(player.score);
+            document.getElementById('final-coins').innerText = player.coins;
+        }
+
+        function selectCar(t) {
+            selectedCarType = t;
+            document.querySelectorAll('.car-card').forEach(b => {
+                b.classList.add('opacity-70');
+                b.classList.remove('border-yellow-400');
+            });
+            document.getElementById('btn-car-'+t).classList.remove('opacity-70');
+            document.getElementById('btn-car-'+t).classList.add('border-yellow-400');
+        }
+
+        function returnToMenu() { location.reload(); }
+        
+        function toggleAbout(v) { 
+            document.getElementById('about-screen').style.display = v ? 'block' : 'none'; 
+            document.getElementById('main-menu').style.display = v ? 'none' : 'block';
+        }
+
+        window.addEventListener('keydown', e => handleInput(e, true));
+        window.addEventListener('keyup', e => handleInput(e, false));
+        window.onload = () => {
+            setTimeout(() => { 
+                const splash = document.getElementById('splash-screen');
+                if(splash) splash.style.opacity = '0'; 
+                setTimeout(() => { if(splash) splash.style.display = 'none'; }, 1000);
+            }, 2000);
+            init();
+        };
+    </script>
+</body>
+</html>
